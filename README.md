@@ -13,5 +13,5 @@ run it on the cloud a.k.a. not a service that you subscribe to.
 Manage discord users favorites, playlists and such things (maybe like Spotify). Will probably need handle a per user
 list of these songs in a database.
 
-Maybe an UI in a idependent server channel. This may be naive, since I know basically nothing about Discord's API 
+Maybe an UI in a idependent server channel. This may be naive, since I know basically nothing about Discord's API
 capabilities and it seems hard to manage with multiple bots in a server.

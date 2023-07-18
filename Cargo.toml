@@ -17,6 +17,7 @@ version = "0.15"
 
 [dependencies.songbird]
 version = "0.3"
+features = ["builtin-queue", "yt-dlp"]
 
 [dependencies.serenity]
 version = "0.11"

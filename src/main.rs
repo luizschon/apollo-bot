@@ -11,7 +11,7 @@ use serenity::Result as SerenityResult;
 use songbird::SerenityInit;
 
 #[group]
-#[commands(ping, pong, play, stop)]
+#[commands(ping, pong, play, stop, skip)]
 struct General;
 
 struct Handler;
@@ -135,9 +135,17 @@ async fn play(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
             }
         };
 
-        handler.play_source(source);
+        // Add song to the end of the queue
+        handler.enqueue_source(source.into());
 
-        check_msg(msg.channel_id.say(&ctx.http, "Playing song").await);
+        check_msg(
+            msg.channel_id
+                .say(
+                    &ctx.http,
+                    format!("Added song to queue: position {}", handler.queue().len()),
+                )
+                .await,
+        );
     } else {
         check_msg(
             msg.channel_id
@@ -172,6 +180,55 @@ async fn stop(ctx: &Context, msg: &Message) -> CommandResult {
         check_msg(msg.channel_id.say(&ctx.http, "Left voice channel").await);
     } else {
         check_msg(msg.reply(ctx, "Not in a voice channel").await);
+    }
+
+    Ok(())
+}
+
+#[command]
+#[only_in(guilds)]
+async fn skip(ctx: &Context, msg: &Message, _args: Args) -> CommandResult {
+    let guild = msg.guild(&ctx.cache).unwrap();
+    let guild_id = guild.id;
+
+    let manager = songbird::get(ctx)
+        .await
+        .expect("Songbird Voice client placed in at initialisation.")
+        .clone();
+
+    if let Some(handler_lock) = manager.get(guild_id) {
+        let handler = handler_lock.lock().await;
+        let queue = handler.queue();
+        let curr = queue.current();
+
+        // @TODO: skip doesn't work as well as manual de-queueing
+        // let _skip = queue.skip();
+
+        // Dequeue current song
+        match curr {
+            Some(_) => {
+                let _ = queue.current().unwrap().stop();
+                queue.dequeue(0);
+                let _ = queue.resume();
+
+                check_msg(
+                    msg.channel_id
+                        .say(
+                            &ctx.http,
+                            format!("Song skipped: {} in queue.", queue.len()),
+                        )
+                        .await,
+                );
+            }
+
+            None => check_msg(msg.channel_id.say(&ctx.http, "Queue is empty").await),
+        }
+    } else {
+        check_msg(
+            msg.channel_id
+                .say(&ctx.http, "Not in a voice channel to play in")
+                .await,
+        );
     }
 
     Ok(())

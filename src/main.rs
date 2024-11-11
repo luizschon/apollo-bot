@@ -1,55 +1,45 @@
 use std::env;
 
 use dotenv::dotenv;
-use serenity::async_trait;
-use serenity::framework::standard::macros::{command, group};
-use serenity::framework::standard::{CommandResult, StandardFramework};
-use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
-use serenity::prelude::*;
+use poise::serenity_prelude as serenity;
+use poise::{Framework, FrameworkOptions};
+use serenity::{all::ClientBuilder, prelude::*};
 
-#[group]
-#[commands(ping, pong)]
-struct General;
+mod commands;
 
-struct Handler;
+type Context<'a> = poise::Context<'a, Data, anyhow::Error>;
 
-#[async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, _: Context, ready: Ready) {
-        println!("{} is connected!", ready.user.name);
-    }
-}
+struct Data;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt::init();
     dotenv().ok();
 
-    let framework = StandardFramework::new()
-        .configure(|c| c.prefix("."))
-        .group(&GENERAL_GROUP);
+    let options = FrameworkOptions {
+        commands: vec![commands::ping()],
+        ..Default::default()
+    };
 
-    let token = env::var("DISCORD_TOKEN").expect("token");
+    let framework = Framework::builder()
+        .setup(move |_ctx, ready, _framework| {
+            Box::pin(async move {
+                tracing::debug!("Logged in as {}", ready.user.name);
+                Ok(Data)
+            })
+        })
+        .options(options)
+        .build();
+
+    let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN in the environment");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
-    let mut client = Client::builder(token, intents)
-        .event_handler(Handler)
+
+    let mut client = ClientBuilder::new(token, intents)
         .framework(framework)
         .await
-        .expect("Error creating client");
+        .unwrap();
 
     if let Err(why) = client.start().await {
-        println!("An error occured while running the client: {:?}", why);
+        tracing::error!("Client error: {why:?}");
     }
-}
-
-#[command]
-async fn ping(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply(ctx, "Pong!").await?;
-    Ok(())
-}
-
-#[command]
-async fn pong(ctx: &Context, msg: &Message) -> CommandResult {
-    msg.reply(ctx, "Ping!").await?;
-    Ok(())
 }

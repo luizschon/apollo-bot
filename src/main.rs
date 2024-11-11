@@ -1,6 +1,7 @@
 use std::env;
 
 use dotenv::dotenv;
+use poise::serenity_prelude as serenity;
 use poise::{Framework, FrameworkOptions};
 use serenity::{all::ClientBuilder, prelude::*};
 
@@ -30,7 +31,7 @@ async fn main() {
         .options(options)
         .build();
 
-    let token = env::var("DISCORD_TOKEN").expect("Expected Discord token in the environment");
+    let token = env::var("DISCORD_TOKEN").expect("Expected DISCORD_TOKEN in the environment");
     let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
 
     let mut client = ClientBuilder::new(token, intents)
